@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz Game — SkillCraft</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f1a; --surface: #13162b; --card: #1a1e35;
+    --accent: #00e5c0; --accent2: #4f8ef7;
+    --yellow: #ffd166; --red: #ff5f6d; --green: #06d6a0;
+    --text: #eef0ff; --muted: #7a7f9a; --border: rgba(255,255,255,0.07);
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; padding: 40px 20px;
+  }
+  header { text-align: center; margin-bottom: 40px; }
+  .brand { font-family:'Syne',sans-serif; font-size:0.9rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+  header h1 { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; }
+
+  .quiz-wrap { width:100%; max-width:620px; }
+
+  /* SCREEN: start */
+  #startScreen {
+    background: var(--surface); border:1px solid var(--border);
+    border-radius:24px; padding:48px 40px; text-align:center;
+  }
+  #startScreen h2 { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; margin-bottom:12px; }
+  #startScreen p  { color:var(--muted); margin-bottom:32px; line-height:1.7; }
+
+  .topic-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:32px; }
+  .topic-btn {
+    background: var(--card); border:2px solid var(--border);
+    border-radius:14px; padding:18px 12px; cursor:pointer;
+    transition:all 0.2s; text-align:center;
+  }
+  .topic-btn:hover, .topic-btn.selected { border-color:var(--accent); background:rgba(0,229,192,0.08); }
+  .topic-btn .t-icon { font-size:1.8rem; margin-bottom:6px; }
+  .topic-btn .t-name { font-size:0.88rem; font-weight:600; }
+
+  /* SCREEN: quiz */
+  #quizScreen { display:none; }
+
+  .progress-bar-wrap { margin-bottom:24px; }
+  .progress-info { display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.82rem; color:var(--muted); }
+  .progress-bar { height:6px; background:rgba(255,255,255,0.07); border-radius:6px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.4s ease; }
+
+  .q-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:24px; padding:36px 32px;
+  }
+
+  .q-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .q-type-badge {
+    font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    padding:4px 12px; border-radius:20px;
+  }
+  .badge-mcq   { background:rgba(79,142,247,0.15); color:var(--accent2); }
+  .badge-multi { background:rgba(255,209,102,0.15); color:var(--yellow); }
+  .badge-fill  { background:rgba(0,229,192,0.12);   color:var(--accent); }
+
+  .timer-wrap { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--muted); }
+  .timer-num { font-family:monospace; font-size:1rem; font-weight:700; color:var(--text); min-width:28px; }
+  .timer-num.urgent { color:var(--red); animation:blink 0.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .q-text { font-size:1.15rem; font-weight:600; line-height:1.55; margin-bottom:28px; }
+
+  /* MCQ options */
+  .options { display:flex; flex-direction:column; gap:10px; }
+  .opt {
+    background:var(--card); border:2px solid var(--border);
+    border-radius:12px; padding:14px 18px;
+    cursor:pointer; transition:all 0.2s;
+    display:flex; align-items:center; gap:12px; font-size:0.95rem;
+  }
+  .opt:hover:not(.locked) { border-color:var(--accent2); background:rgba(79,142,247,0.07); }
+  .opt.selected { border-color:var(--accent2); background:rgba(79,142,247,0.1); }
+  .opt.correct  { border-color:var(--green);   background:rgba(6,214,160,0.1); }
+  .opt.wrong    { border-color:var(--red);      background:rgba(255,95,109,0.1); }
+  .opt-letter {
+    width:30px; height:30px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.78rem; font-weight:700;
+    background:rgba(255,255,255,0.05);
+  }
+
+  /* fill in blank */
+  .fill-input {
+    width:100%; background:var(--card); border:2px solid var(--border);
+    border-radius:12px; padding:14px 18px; color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:1rem; outline:none;
+    transition:border-color 0.2s;
+  }
+  .fill-input:focus { border-color:var(--accent2); }
+  .fill-input.correct { border-color:var(--green); }
+  .fill-input.wrong   { border-color:var(--red); }
+
+  .feedback-msg {
+    margin-top:14px; font-size:0.88rem; font-weight:600;
+    padding:10px 16px; border-radius:10px; display:none;
+  }
+  .feedback-msg.show { display:block; }
+  .feedback-msg.correct { background:rgba(6,214,160,0.12); color:var(--green); }
+  .feedback-msg.wrong   { background:rgba(255,95,109,0.12); color:var(--red); }
+
+  .q-actions { display:flex; justify-content:flex-end; margin-top:24px; gap:12px; }
+
+  /* SCREEN: results */
+  #resultScreen { display:none; background:var(--surface); border:1px solid var(--border); border-radius:24px; padding:48px 40px; text-align:center; }
+  .score-ring { position:relative; width:160px; height:160px; margin:0 auto 28px; }
+  .score-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .score-ring-track { fill:none; stroke:rgba(255,255,255,0.06); stroke-width:10; }
+  .score-ring-fill  { fill:none; stroke:url(#scoreGrad); stroke-width:10; stroke-linecap:round;
+    stroke-dasharray:440; stroke-dashoffset:440; transition:stroke-dashoffset 1s ease; }
+  .score-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .score-num { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; }
+  .score-lbl { font-size:0.75rem; color:var(--muted); }
+
+  #resultScreen h2 { font-family:'Syne',sans-serif; font-size:1.7rem; font-weight:800; margin-bottom:10px; }
+  #resultScreen p  { color:var(--muted); margin-bottom:28px; }
+
+  .result-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:32px; }
+  .rs { background:var(--card); border-radius:14px; padding:18px 10px; }
+  .rs-num { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; }
+  .rs-lbl { font-size:0.75rem; color:var(--muted); margin-top:4px; }
+
+  /* common btn */
+  .btn {
+    font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.9rem;
+    padding:13px 28px; border-radius:50px; border:none; cursor:pointer;
+    transition:all 0.22s; outline:none;
+  }
+  .btn-primary { background:var(--accent); color:var(--bg); box-shadow:0 6px 20px rgba(0,229,192,0.3); }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,229,192,0.4); }
+  .btn-secondary { background:rgba(255,255,255,0.07); color:var(--text); border:1px solid var(--border); }
+  .btn-secondary:hover { background:rgba(255,255,255,0.12); }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none!important; }
+
+  @media(max-width:480px) {
+    .q-card { padding:24px 18px; }
+    .topic-grid { grid-template-columns:1fr 1fr; }
+    #startScreen { padding:32px 20px; }
+    .result-stats { grid-template-columns:1fr 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">SkillCraft Technology</div>
+  <h1>Quiz Game</h1>
+</header>
+
+<div class="quiz-wrap">
+
+  <!-- START -->
+  <div id="startScreen">
+    <h2>Pick a Topic 🧠</h2>
+    <p>Choose a category and test your knowledge. Answer correctly to rack up points!</p>
+    <div class="topic-grid">
+      <div class="topic-btn selected" data-topic="webdev" onclick="selectTopic(this)">
+        <div class="t-icon">🌐</div><div class="t-name">Web Dev</div>
+      </div>
+      <div class="topic-btn" data-topic="general" onclick="selectTopic(this)">
+        <div class="t-icon">🌍</div><div class="t-name">General</div>
+      </div>
+      <div class="topic-btn" data-topic="science" onclick="selectTopic(this)">
+        <div class="t-icon">🔬</div><div class="t-name">Science</div>
+      </div>
+      <div class="topic-btn" data-topic="math" onclick="selectTopic(this)">
+        <div class="t-icon">🔢</div><div class="t-name">Math</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="startQuiz()">Start Quiz →</button>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quizScreen">
+    <div class="progress-bar-wrap">
+      <div class="progress-info">
+        <span id="qProgress">Question 1 of 10</span>
+        <span id="qScore">Score: 0</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="q-card">
+      <div class="q-meta">
+        <span class="q-type-badge" id="qTypeBadge">MCQ</span>
+        <div class="timer-wrap">⏱ <span class="timer-num" id="timerNum">15</span>s</div>
+      </div>
+      <div class="q-text" id="qText"></div>
+      <div id="qBody"></div>
+      <div class="feedback-msg" id="feedbackMsg"></div>
+      <div class="q-actions">
+        <button class="btn btn-secondary" id="btnSkip" onclick="nextQuestion()">Skip</button>
+        <button class="btn btn-primary"   id="btnNext" onclick="submitAnswer()" disabled>Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultScreen">
+    <div class="score-ring">
+      <svg viewBox="0 0 160 160">
+        <defs>
+          <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00e5c0"/><stop offset="100%" stop-color="#4f8ef7"/>
+          </linearGradient>
+        </defs>
+        <circle class="score-ring-track" cx="80" cy="80" r="70"/>
+        <circle class="score-ring-fill" id="scoreRingFill" cx="80" cy="80" r="70"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-num" id="finalScore">0%</div>
+        <div class="score-lbl">Score</div>
+      </div>
+    </div>
+    <h2 id="resultTitle">Well done!</h2>
+    <p id="resultMsg"></p>
+    <div class="result-stats">
+      <div class="rs"><div class="rs-num" id="rsCorrect" style="color:var(--green)">0</div><div class="rs-lbl">Correct</div></div>
+      <div class="rs"><div class="rs-num" id="rsWrong"   style="color:var(--red)">0</div><div class="rs-lbl">Wrong</div></div>
+      <div class="rs"><div class="rs-num" id="rsSkipped" style="color:var(--yellow)">0</div><div class="rs-lbl">Skipped</div></div>
+    </div>
+    <button class="btn btn-primary" onclick="restartQuiz()">Play Again 🔄</button>
+  </div>
+
+</div>
+
+<script>
+const QUESTIONS = {
+  webdev: [
+    { type:'mcq',   q:'What does CSS stand for?', opts:['Cascading Style Sheets','Computer Style System','Creative Style Syntax','Colorful Style Sheets'], ans:0 },
+    { type:'mcq',   q:'Which HTML tag is used to link a JavaScript file?', opts:['<js>','<script>','<link>','<src>'], ans:1 },
+    { type:'multi', q:'Which of these are JavaScript data types? (select all that apply)', opts:['String','Boolean','Float','Symbol'], ans:[0,1,3] },
+    { type:'fill',  q:'The HTML tag for the largest heading is ___.', ans:'h1' },
+    { type:'mcq',   q:'Which CSS property controls text size?', opts:['font-weight','text-size','font-size','text-scale'], ans:2 },
+    { type:'mcq',   q:'What does DOM stand for?', opts:['Document Object Model','Data Object Module','Design Output Method','Display Object Map'], ans:0 },
+    { type:'fill',  q:'The ___ attribute in <img> provides alternate text.', ans:'alt' },
+    { type:'multi', q:'Which are valid CSS display values?', opts:['block','inline','diagonal','flex'], ans:[0,1,3] },
+    { type:'mcq',   q:'Which method adds an element to the end of a JS array?', opts:['push()','pop()','shift()','append()'], ans:0 },
+    { type:'fill',  q:'In CSS, ___ is used to add space inside an element\'s border.', ans:'padding' },
+  ],
+  general: [
+    { type:'mcq',   q:'What is the capital of Japan?', opts:['Beijing','Seoul','Tokyo','Bangkok'], ans:2 },
+    { type:'mcq',   q:'How many continents are there on Earth?', opts:['5','6','7','8'], ans:2 },
+    { type:'fill',  q:'The currency of the United Kingdom is the ___.', ans:'pound' },
+    { type:'multi', q:'Which of these are planets in our solar system?', opts:['Mars','Pluto','Venus','Neptune'], ans:[0,2,3] },
+    { type:'mcq',   q:'Who painted the Mona Lisa?', opts:['Van Gogh','Picasso','Da Vinci','Rembrandt'], ans:2 },
+    { type:'mcq',   q:'What is the largest ocean on Earth?', opts:['Atlantic','Indian','Arctic','Pacific'], ans:3 },
+    { type:'fill',  q:'Water is made of hydrogen and ___.', ans:'oxygen' },
+    { type:'mcq',   q:'How many sides does a hexagon have?', opts:['5','6','7','8'], ans:1 },
+    { type:'multi', q:'Which are primary colors of light?', opts:['Red','Yellow','Green','Blue'], ans:[0,2,3] },
+    { type:'mcq',   q:'What is the fastest land animal?', opts:['Lion','Cheetah','Horse','Falcon'], ans:1 },
+  ],
+  science: [
+    { type:'mcq',   q:'What is the chemical symbol for Gold?', opts:['Go','Gd','Au','Ag'], ans:2 },
+    { type:'mcq',   q:'What planet is known as the Red Planet?', opts:['Venus','Jupiter','Saturn','Mars'], ans:3 },
+    { type:'fill',  q:'The powerhouse of the cell is the ___.', ans:'mitochondria' },
+    { type:'multi', q:'Which are Newton\'s Laws of Motion?', opts:['Inertia','Gravity','Action-Reaction','Acceleration'], ans:[0,2,3] },
+    { type:'mcq',   q:'What is the speed of light (approx)?', opts:['300 km/s','3,000 km/s','300,000 km/s','30,000 km/s'], ans:2 },
+    { type:'fill',  q:'H2O is the chemical formula for ___.', ans:'water' },
+    { type:'mcq',   q:'How many bones are in an adult human body?', opts:['196','206','216','186'], ans:1 },
+    { type:'multi', q:'Which are states of matter?', opts:['Solid','Liquid','Energy','Gas'], ans:[0,1,3] },
+    { type:'mcq',   q:'DNA stands for?', opts:['Deoxyribonucleic Acid','Dextrose Nucleic Acid','Double Nucleic Acid','Dynamic Nucleic Acid'], ans:0 },
+    { type:'fill',  q:'The closest star to Earth is the ___.', ans:'sun' },
+  ],
+  math: [
+    { type:'mcq',   q:'What is 15² (15 squared)?', opts:['175','215','225','235'], ans:2 },
+    { type:'fill',  q:'The value of π (pi) rounded to 2 decimal places is ___.', ans:'3.14' },
+    { type:'mcq',   q:'What is the next prime number after 11?', opts:['12','13','14','15'], ans:1 },
+    { type:'multi', q:'Which are quadrilaterals?', opts:['Square','Triangle','Rectangle','Rhombus'], ans:[0,2,3] },
+    { type:'mcq',   q:'What is 20% of 250?', opts:['40','45','50','55'], ans:2 },
+    { type:'fill',  q:'The square root of 144 is ___.', ans:'12' },
+    { type:'mcq',   q:'What is the sum of angles in a triangle?', opts:['90°','180°','270°','360°'], ans:1 },
+    { type:'multi', q:'Which are types of triangles by sides?', opts:['Equilateral','Scalene','Obtuse','Isosceles'], ans:[0,1,3] },
+    { type:'mcq',   q:'What is 8! (8 factorial)?', opts:['5040','40320','362880','720'], ans:1 },
+    { type:'fill',  q:'In the equation y = mx + b, m represents the ___.', ans:'slope' },
+  ],
+};
+
+let topic = 'webdev', questions = [], qi = 0, score = 0;
+let correct = 0, wrong = 0, skipped = 0;
+let selected = [], timerInt = null, timeLeft = 15;
+let answered = false;
+
+function selectTopic(el) {
+  document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  topic = el.dataset.topic;
+}
+
+function startQuiz() {
+  questions = [...QUESTIONS[topic]].sort(() => Math.random() - 0.5);
+  qi = 0; score = 0; correct = 0; wrong = 0; skipped = 0;
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  loadQuestion();
+}
+
+function loadQuestion() {
+  if (qi >= questions.length) { showResult(); return; }
+  answered = false; selected = [];
+  const q = questions[qi];
+  const total = questions.length;
+
+  document.getElementById('qProgress').textContent = `Question ${qi+1} of ${total}`;
+  document.getElementById('qScore').textContent = `Score: ${score}`;
+  document.getElementById('progressFill').style.width = `${(qi/total)*100}%`;
+
+  const badge = document.getElementById('qTypeBadge');
+  if (q.type==='mcq')   { badge.textContent='Single Choice'; badge.className='q-type-badge badge-mcq'; }
+  if (q.type==='multi') { badge.textContent='Multi Select';  badge.className='q-type-badge badge-multi'; }
+  if (q.type==='fill')  { badge.textContent='Fill in Blank'; badge.className='q-type-badge badge-fill'; }
+
+  document.getElementById('qText').textContent = q.q;
+
+  const body = document.getElementById('qBody');
+  if (q.type === 'fill') {
+    body.innerHTML = `<input class="fill-input" id="fillInput" placeholder="Type your answer…" autocomplete="off"/>`;
+    document.getElementById('fillInput').addEventListener('input', () => {
+      document.getElementById('btnNext').disabled = !document.getElementById('fillInput').value.trim();
+    });
+  } else {
+    const letters = ['A','B','C','D'];
+    const multi = q.type === 'multi';
+    body.innerHTML = `<div class="options">${q.opts.map((o,i) =>
+      `<div class="opt" id="opt${i}" onclick="toggleOpt(${i},${multi})">
+        <span class="opt-letter">${letters[i]}</span>${o}
+      </div>`).join('')}</div>`;
+  }
+
+  const fb = document.getElementById('feedbackMsg');
+  fb.className = 'feedback-msg'; fb.textContent = '';
+  document.getElementById('btnNext').disabled = true;
+  document.getElementById('btnSkip').disabled = false;
+
+  startTimer();
+}
+
+function toggleOpt(i, multi) {
+  if (answered) return;
+  if (!multi) {
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    selected = [i];
+  } else {
+    const idx = selected.indexOf(i);
+    if (idx >= 0) { selected.splice(idx,1); document.getElementById('opt'+i).classList.remove('selected'); }
+    else          { selected.push(i);        document.getElementById('opt'+i).classList.add('selected'); }
+  }
+  if (!multi) document.getElementById('opt'+i).classList.add('selected');
+  document.getElementById('btnNext').disabled = selected.length === 0;
+}
+
+function submitAnswer() {
+  if (answered) { nextQuestion(); return; }
+  clearInterval(timerInt);
+  answered = true;
+  const q = questions[qi];
+  let isCorrect = false;
+
+  if (q.type === 'fill') {
+    const val = document.getElementById('fillInput').value.trim().toLowerCase();
+    const ans = q.ans.toLowerCase();
+    isCorrect = val === ans;
+    const inp = document.getElementById('fillInput');
+    inp.classList.add(isCorrect ? 'correct' : 'wrong');
+    inp.disabled = true;
+  } else if (q.type === 'multi') {
+    const sortedSel = [...selected].sort().join(',');
+    const sortedAns = [...q.ans].sort().join(',');
+    isCorrect = sortedSel === sortedAns;
+    q.opts.forEach((_,i) => {
+      const el = document.getElementById('opt'+i);
+      el.classList.add('locked');
+      if (q.ans.includes(i)) el.classList.add('correct');
+      else if (selected.includes(i)) el.classList.add('wrong');
+    });
+  } else {
+    isCorrect = selected[0] === q.ans;
+    q.opts.forEach((_,i) => {
+      const el = document.getElementById('opt'+i);
+      el.classList.add('locked');
+      if (i === q.ans) el.classList.add('correct');
+      else if (i === selected[0]) el.classList.add('wrong');
+    });
+  }
+
+  const fb = document.getElementById('feedbackMsg');
+  if (isCorrect) {
+    score += 10; correct++;
+    fb.textContent = '✅ Correct! +10 points';
+    fb.className = 'feedback-msg correct show';
+  } else {
+    wrong++;
+    const correctAns = q.type==='fill' ? q.ans
+      : q.type==='multi' ? q.ans.map(a=>q.opts[a]).join(', ')
+      : q.opts[q.ans];
+    fb.textContent = `❌ Wrong! Answer: ${correctAns}`;
+    fb.className = 'feedback-msg wrong show';
+  }
+  document.getElementById('qScore').textContent = `Score: ${score}`;
+  document.getElementById('btnNext').textContent = 'Next →';
+  document.getElementById('btnNext').disabled = false;
+  document.getElementById('btnSkip').disabled = true;
+}
+
+function nextQuestion() {
+  if (!answered) skipped++;
+  clearInterval(timerInt);
+  qi++;
+  document.getElementById('btnNext').textContent = 'Submit';
+  loadQuestion();
+}
+
+function startTimer() {
+  timeLeft = 15;
+  document.getElementById('timerNum').textContent = timeLeft;
+  document.getElementById('timerNum').className = 'timer-num';
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    timeLeft--;
+    const el = document.getElementById('timerNum');
+    el.textContent = timeLeft;
+    if (timeLeft <= 5) el.className = 'timer-num urgent';
+    if (timeLeft <= 0) { clearInterval(timerInt); nextQuestion(); }
+  }, 1000);
+}
+
+function showResult() {
+  document.getElementById('quizScreen').style.display = 'none';
+  const rs = document.getElementById('resultScreen');
+  rs.style.display = 'block';
+  const pct = Math.round((correct / questions.length) * 100);
+  document.getElementById('finalScore').textContent = pct + '%';
+  document.getElementById('rsCorrect').textContent = correct;
+  document.getElementById('rsWrong').textContent   = wrong;
+  document.getElementById('rsSkipped').textContent = skipped;
+
+  const titles = ['Keep Practicing! 💪','Not Bad! 👍','Good Job! 🎉','Excellent! 🌟','Perfect! 🏆'];
+  const msgs   = ['Don\'t worry, practice makes perfect!','You\'re getting there, keep it up!','Solid effort, review the missed ones!','You know your stuff!','Flawless! You aced it!'];
+  const tier = pct < 40 ? 0 : pct < 60 ? 1 : pct < 75 ? 2 : pct < 95 ? 3 : 4;
+  document.getElementById('resultTitle').textContent = titles[tier];
+  document.getElementById('resultMsg').textContent   = `You scored ${score} points. ${msgs[tier]}`;
+
+  const CIRC = 440;
+  setTimeout(() => {
+    document.getElementById('scoreRingFill').style.strokeDashoffset = CIRC - (CIRC * pct / 100);
+  }, 100);
+}
+
+function restartQuiz() {
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('startScreen').style.display = 'block';
+  document.getElementById('scoreRingFill').style.strokeDashoffset = 440;
+}
+</script>
+</body>
+</html>
